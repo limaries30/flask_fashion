@@ -29,6 +29,8 @@ from tensorflow.keras.preprocessing import image
 # Some utilites
 import numpy as np
 from util import base64_to_pil
+from util import DominantColors,closest_colour,get_colour_name,main_color,extract_color
+
 
 
 # Declare a flask app
@@ -38,7 +40,6 @@ app = Flask(__name__)
 # Model saved with Keras model.save()
 
 config = coco_main.FashionConfig()
-
 
 COCO_MODEL_PATH ='./models/mask_rcnn_coco_0_87_1_0069.h5'  #path to model
 MODEL_DIR = './models'
@@ -53,6 +54,7 @@ class InferenceConfig(config.__class__):
     # Run detection on one image at a time
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
+    BACKBONE='resnet101'
 
 config = InferenceConfig()
 config.display()
@@ -63,6 +65,7 @@ with tf.device(DEVICE):
 
 print("Loading weights ", COCO_MODEL_PATH)
 model.load_weights(COCO_MODEL_PATH, by_name=True)    
+print("Loaded")
 
 CLASS_NAMES=['BG',\
  'short_sleeved_shirt',\
@@ -94,16 +97,23 @@ def predict():
         # Get the image from post request
         img = base64_to_pil(request.json)
         img=np.array(img)
-        print(img.shape)
 
         # Save the image to ./uploads
         # img.save("./uploads/image.png")
 
         # Make prediction
-        preds = model.detect([img], verbose=1)
-        result=preds[0]['class_ids'][0]
-        result=CLASS_NAMES[result]
-        pred_proba='TODO'
+        preds = model.detect([img], verbose=1)[0]
+
+        mask=preds['masks']
+        colors_rgb=extract_color(img,mask)
+
+        color_names=list(map(lambda x:get_colour_name(x)[-1],colors_rgb))
+        clothe_names=np.array(CLASS_NAMES)[preds['class_ids']].tolist()
+
+        result_sentence=[]
+        for x,y in zip(reversed(color_names),reversed(clothe_names)):
+            result_sentence.append(x+' '+y)
+        final_sentence=' and '.join(result_sentence)
 
         # Process your result for human
         # pred_proba = "{:.3f}".format(np.amax(preds))    # Max probability
@@ -113,7 +123,7 @@ def predict():
         # result = result.replace('_', ' ').capitalize()
         
         # Serialize the result, you can add additional fields
-        return jsonify(result=result, probability=pred_proba)
+        return jsonify(result=final_sentence, probability=None)
 
     return None
 
