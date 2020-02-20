@@ -28,8 +28,13 @@ from tensorflow.keras.preprocessing import image
 
 # Some utilites
 import numpy as np
-from util import base64_to_pil
-from util import DominantColors,closest_colour,get_colour_name,main_color,extract_color
+from util import base64_to_pil,np_to_64
+from util import DominantColors,closest_colour,get_colour_name,main_color,extract_color,nocache,get_ax
+import io
+from io import BytesIO
+import base64
+from PIL import Image
+
 
 
 
@@ -85,45 +90,75 @@ CLASS_NAMES=['BG',\
 
 
 @app.route('/', methods=['GET'])
+@nocache
 def index():
     # Main page
     return render_template('index.html')
 
 
 @app.route('/predict', methods=['GET', 'POST'])
+@nocache
 def predict():
     if request.method == 'POST':
         
         # Get the image from post request
         img = base64_to_pil(request.json)
         img=np.array(img)
+        masked_image = img.astype(np.uint32).copy()
 
-        # Save the image to ./uploads
-        # img.save("./uploads/image.png")
 
-        # Make prediction
+
+
+
+        # # Make prediction
         preds = model.detect([img], verbose=1)[0]
 
-        mask=preds['masks']
-        colors_rgb=extract_color(img,mask)
+        N = preds['rois'].shape[0]
+        masks=preds['masks']
+
+        if not N:
+            print("\n*** No instances to display *** \n")
+            final_sentence="인공지능도 반해버린 당신"
+            return jsonify(image_response=None,result=final_sentence, probability=None)
+
+        colors = visualize.random_colors(N)
+
+        for i in range(N):
+            mask = masks[:, :, i]
+            masked_image = visualize.apply_mask(masked_image, mask, colors[i])
+
+
+        fig,ax = get_ax(1)
+
+        _=visualize.display_instances(img, preds['rois'], preds['masks'], preds['class_ids'], 
+                            CLASS_NAMES, preds['scores'], ax=ax,
+                            title="Predictions")
+
+        io = BytesIO()
+        fig.savefig(io, format='jpeg')
+        data = base64.encodestring(io.getvalue()).decode('utf-8')
+
+        original_img_base64=np_to_64(img)
+        masked_img_base64=np_to_64(masked_image)
+
+        total_img_base64='data:image/jpeg;base64,'+data
+        
+       
+        colors_rgb=extract_color(img,masks)
 
         color_names=list(map(lambda x:get_colour_name(x)[-1],colors_rgb))
-        clothe_names=np.array(CLASS_NAMES)[preds['class_ids']].tolist()
+        cloth_names=np.array(CLASS_NAMES)[preds['class_ids']].tolist()
 
-        result_sentence=[]
-        for x,y in zip(reversed(color_names),reversed(clothe_names)):
-            result_sentence.append(x+' '+y)
-        final_sentence=' and '.join(result_sentence)
+        fashion_info=dict(zip(cloth_names,color_names))
 
-        # Process your result for human
-        # pred_proba = "{:.3f}".format(np.amax(preds))    # Max probability
-        # pred_class = decode_predictions(preds, top=1)   # ImageNet Decode
+        # result_sentence=[]
+        # for x,y in zip(reversed(color_names),reversed(clothe_names)):
+        #     result_sentence.append(x+' '+y)
+        # final_sentence=' and '.join(result_sentence)
 
-        # result = str(pred_class[0][0][1])               # Convert to string
-        # result = result.replace('_', ' ').capitalize()
-        
-        # Serialize the result, you can add additional fields
-        return jsonify(result=final_sentence, probability=None)
+  
+
+        return jsonify(image_response=total_img_base64,result=fashion_info, probability=None)
 
     return None
 

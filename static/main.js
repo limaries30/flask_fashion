@@ -36,8 +36,29 @@ var imagePreview = document.getElementById("image-preview");
 var imageDisplay = document.getElementById("image-display");
 var uploadCaption = document.getElementById("upload-caption");
 var predResult = document.getElementById("pred-result");
+
+var predUpper = document.getElementById("pred-upper");
+var predLower = document.getElementById("pred-lower");
+var predDress=document.getElementById("pred-dress");
+
 var loader = document.getElementById("loader");
 
+var UPPER_CLOTHES=['BG',
+ 'short_sleeved_shirt',
+ 'long_sleeved_shirt',
+ 'short_sleeved_outwear',
+ 'long_sleeved_outwear',
+ 'vest',
+ 'sling',]
+var LOWER_CLOTHES=[
+ 'shorts',
+ 'trousers',
+ 'skirt']
+var DRESS=[
+ 'short_sleeved_dress',
+ 'long_sleeved_dress',
+ 'vest_dress',
+ 'sling_dress']
 //========================================================================
 // Main button events
 //========================================================================
@@ -65,16 +86,25 @@ function clearImage() {
   // remove image sources and hide them
   imagePreview.src = "";
   imageDisplay.src = "";
+
   predResult.innerHTML = "";
+  predUpper.innerHTML = "";
+  predLower.innerHTML = "";
+  predDress.innerHTML = "";
 
   hide(imagePreview);
   hide(imageDisplay);
   hide(loader);
   hide(predResult);
+  hide(predUpper);
+  hide(predLower);
+  hide(predDress);
   show(uploadCaption);
 
   imageDisplay.classList.remove("loading");
 }
+
+
 
 function previewFile(file) {
   // show the preview of the image
@@ -91,6 +121,9 @@ function previewFile(file) {
 
     // reset
     predResult.innerHTML = "";
+    predUpper.innerHTML = "";
+    predLower.innerHTML = "";
+
     imageDisplay.classList.remove("loading");
 
     displayImage(reader.result, "image-display");
@@ -112,7 +145,10 @@ function predictImage(image) {
     .then(resp => {
       if (resp.ok)
         resp.json().then(data => {
+
+          displayImage(data.image_response,"image-display");
           displayResult(data);
+    
         });
     })
     .catch(err => {
@@ -132,8 +168,33 @@ function displayResult(data) {
   // display the result
   // imageDisplay.classList.remove("loading");
   hide(loader);
-  predResult.innerHTML = data.result;
-  show(predResult);
+  imageDisplay.classList.remove("loading");
+  var obj=data.result;
+
+  Object.keys(obj).forEach(function(key) {
+
+    if(UPPER_CLOTHES.includes(key))
+    {
+    predUpper.innerHTML += key + " upper " + obj[key];
+    show(predUpper);
+    }
+    
+    if(LOWER_CLOTHES.includes(key))
+    {
+    predLower.innerHTML += key + " lower " + obj[key];
+    show(predLower);
+    }
+
+    
+    if(DRESS.includes(key))
+    {
+    predDress.innerHTML += key + " lower " + obj[key];
+    show(predDress);
+    }
+
+    });
+
+ 
 }
 
 function hide(el) {

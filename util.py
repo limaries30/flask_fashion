@@ -6,13 +6,56 @@ import base64
 import numpy as np
 
 from PIL import Image
+import io
 from io import BytesIO
+import base64
 
 import cv2
 from sklearn.cluster import KMeans
 import numpy as np
 import matplotlib.pyplot as plt
 import webcolors
+
+
+## remove cache 
+from functools import wraps, update_wrapper
+from datetime import datetime
+from flask import make_response
+
+def nocache(view):
+  @wraps(view)
+  def no_cache(*args, **kwargs):
+    response = make_response(view(*args, **kwargs))
+    response.headers['Last-Modified'] = datetime.now()
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '-1'
+    return response      
+  return update_wrapper(no_cache, view)
+###############
+
+
+def get_ax(rows=1, cols=1, size=16):
+    """Return a Matplotlib Axes array to be used in
+    all visualizations in the notebook. Provide a
+    central point to control graph sizes.
+    
+    Adjust the size attribute to control how big to render images
+    """
+    fig, ax = plt.subplots(rows, cols, figsize=(size*cols, size*rows))
+    return fig,ax
+
+    
+
+def np_to_64(img):
+
+    img = Image.fromarray(img.astype("uint8"))
+    rawBytes = io.BytesIO()
+    img.save(rawBytes, "JPEG")
+    rawBytes.seek(0)
+    img_base64 = base64.b64encode(rawBytes.read())
+
+    return img_base64
 
 def base64_to_pil(img_base64):
     """
