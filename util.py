@@ -22,16 +22,16 @@ from functools import wraps, update_wrapper
 from datetime import datetime
 from flask import make_response
 
-def nocache(view):
-  @wraps(view)
-  def no_cache(*args, **kwargs):
-    response = make_response(view(*args, **kwargs))
-    response.headers['Last-Modified'] = datetime.now()
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '-1'
-    return response      
-  return update_wrapper(no_cache, view)
+# def nocache(view):
+#   @wraps(view)
+#   def no_cache(*args, **kwargs):
+#     response = make_response(view(*args, **kwargs))
+#     response.headers['Last-Modified'] = datetime.now()
+#     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+#     response.headers['Pragma'] = 'no-cache'
+#     response.headers['Expires'] = '-1'
+#     return response      
+#   return update_wrapper(no_cache, view)
 ###############
 
 
@@ -47,15 +47,15 @@ def get_ax(rows=1, cols=1, size=16):
 
     
 
-def np_to_64(img):
+# def np_to_64(img):
 
-    img = Image.fromarray(img.astype("uint8"))
-    rawBytes = io.BytesIO()
-    img.save(rawBytes, "JPEG")
-    rawBytes.seek(0)
-    img_base64 = base64.b64encode(rawBytes.read())
+#     img = Image.fromarray(img.astype("uint8"))
+#     rawBytes = io.BytesIO()
+#     img.save(rawBytes, "PNG")
+#     rawBytes.seek(0)
+#     img_base64 = base64.b64encode(rawBytes.read())
 
-    return img_base64
+#     return img_base64
 
 def base64_to_pil(img_base64):
     """
@@ -76,6 +76,21 @@ def np_to_base64(img_np):
     img.save(buffered, format="PNG")
     return u"data:image/png;base64," + base64.b64encode(buffered.getvalue()).decode("ascii")
 
+def count_color(masked_image):
+    '''img:(n,3) array'''
+    color_count={}
+    for i in masked_image:
+        rgb_tuple=tuple(i)
+        if rgb_tuple not in color_count.keys():
+            color_count[rgb_tuple]=1
+        else:
+            color_count[rgb_tuple]+=1
+
+    return color_count
+
+def count_color_dom(count_dict):
+    most_color=sorted(count_dict.items(),key=(lambda x:x[1]),reverse=True)[0][0]
+    return most_color
 
 
 def closest_colour(requested_colour):
@@ -112,7 +127,7 @@ def extract_color(image,mask):
     
 def main_color(image,single_mask):
     
-    cluster=3
+    cluster=10
     
     masked_image=image[single_mask]
 

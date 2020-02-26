@@ -28,13 +28,13 @@ from tensorflow.keras.preprocessing import image
 
 # Some utilites
 import numpy as np
-from util import base64_to_pil,np_to_64
-from util import DominantColors,closest_colour,get_colour_name,main_color,extract_color,nocache,get_ax
+from util import base64_to_pil,np_to_base64
+from util import DominantColors,closest_colour,get_colour_name,main_color,extract_color,get_ax,count_color,count_color_dom
 import io
 from io import BytesIO
 import base64
 from PIL import Image
-
+import webcolors
 
 
 
@@ -46,9 +46,9 @@ app = Flask(__name__)
 
 config = coco_main.FashionConfig()
 
-COCO_MODEL_PATH ='./models/mask_rcnn_coco_0_87_1_0069.h5'  #path to model
+COCO_MODEL_PATH ='./models/mask_rcnn_coco_0069.h5'  #path to model
 MODEL_DIR = './models'
-DEVICE = "/cpu:0" 
+DEVICE = "/gpu:0" 
 TEST_MODE = "inference"
 
 
@@ -59,7 +59,7 @@ class InferenceConfig(config.__class__):
     # Run detection on one image at a time
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
-    BACKBONE='resnet101'
+    BACKBONE='resnet50'
 
 config = InferenceConfig()
 config.display()
@@ -73,31 +73,29 @@ model.load_weights(COCO_MODEL_PATH, by_name=True)
 print("Loaded")
 
 CLASS_NAMES=['BG',\
- 'short_sleeved_shirt',\
- 'long_sleeved_shirt',\
- 'short_sleeved_outwear',\
- 'long_sleeved_outwear',\
- 'vest',\
- 'sling',\
- 'shorts',\
- 'trousers',\
- 'skirt',\
- 'short_sleeved_dress',\
- 'long_sleeved_dress',\
- 'vest_dress',\
- 'sling_dress']
+ 'Short Sleeved Shirt',\
+ 'Long Sleeved Shirt',\
+ 'Short Sleeved Outwear',\
+ 'Long Sleeved Outwear',\
+ 'Vest',\
+ 'Sling',\
+ 'Shorts',\
+ 'Trousers',\
+ 'Skirt',\
+ 'Short Sleeved Dress',\
+ 'Long Sleeved Dress',\
+ 'Vest Dress',\
+ 'Sling Dress']
 
 
 
 @app.route('/', methods=['GET'])
-@nocache
 def index():
     # Main page
     return render_template('index.html')
 
 
 @app.route('/predict', methods=['GET', 'POST'])
-@nocache
 def predict():
     if request.method == 'POST':
         
@@ -107,48 +105,56 @@ def predict():
         masked_image = img.astype(np.uint32).copy()
 
 
-
-
-
-        # # Make prediction
+        '''Make prediction'''
         preds = model.detect([img], verbose=1)[0]
-
+        print('Detection Finished')
         N = preds['rois'].shape[0]
         masks=preds['masks']
+        colors = visualize.random_colors(N)
 
         if not N:
             print("\n*** No instances to display *** \n")
             final_sentence="인공지능도 반해버린 당신"
             return jsonify(image_response=None,result=final_sentence, probability=None)
 
-        colors = visualize.random_colors(N)
-
+        '''Masking'''
         for i in range(N):
             mask = masks[:, :, i]
             masked_image = visualize.apply_mask(masked_image, mask, colors[i])
-
-
+        
+        '''Plotting mask and bbox'''
         fig,ax = get_ax(1)
-
         _=visualize.display_instances(img, preds['rois'], preds['masks'], preds['class_ids'], 
                             CLASS_NAMES, preds['scores'], ax=ax,
                             title="Predictions")
+        print('Masking Finished')
 
+        '''flask img to bytes'''
         io = BytesIO()
-        fig.savefig(io, format='jpeg')
+        fig.savefig(io, format='png')
         data = base64.encodestring(io.getvalue()).decode('utf-8')
+        original_img_base64=np_to_base64(img)
+        masked_img_base64=np_to_base64(masked_image)
+        total_img_base64='data:image/png;base64,'+data
 
-        original_img_base64=np_to_64(img)
-        masked_img_base64=np_to_64(masked_image)
 
-        total_img_base64='data:image/jpeg;base64,'+data
-        
+        '''return most frequent color in [(r,g,b),...]'''
+        color_count=[count_color(img[masks[:,:,i]]) for i in range(N)]
+        colors_rgb=list(map(lambda x:count_color_dom(x),color_count))
+        print(colors_rgb)
        
-        colors_rgb=extract_color(img,masks)
+        '''return dominant color in [(r,g,b),...] using k-means'''
+        #colors_rgb=extract_color(img,masks)
 
-        color_names=list(map(lambda x:get_colour_name(x)[-1],colors_rgb))
+        '''get color name according to css3'''
+        #color_names=list(map(lambda x:get_colour_name(x)[-1],colors_rgb))
+
+        '''change rgb to hex'''
+        color_names=list(map(lambda x:webcolors.rgb_to_hex(x),colors_rgb))
+        '''get cloth names'''
         cloth_names=np.array(CLASS_NAMES)[preds['class_ids']].tolist()
-
+        print(cloth_names)
+        '''make dict={cloth name:color name,...'''
         fashion_info=dict(zip(cloth_names,color_names))
 
         # result_sentence=[]

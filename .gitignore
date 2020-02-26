@@ -7,6 +7,8 @@ __pycache__/
 # Environments
 .env
 .venv
+.models
+models/
 env/
 venv/
 ENV/

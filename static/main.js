@@ -39,26 +39,27 @@ var predResult = document.getElementById("pred-result");
 
 var predUpper = document.getElementById("pred-upper");
 var predLower = document.getElementById("pred-lower");
-var predDress=document.getElementById("pred-dress");
+var predDress = document.getElementById("pred-dress");
+var labelUpper = document.getElementById("label_upper");
 
 var loader = document.getElementById("loader");
 
 var UPPER_CLOTHES=['BG',
- 'short_sleeved_shirt',
- 'long_sleeved_shirt',
- 'short_sleeved_outwear',
- 'long_sleeved_outwear',
- 'vest',
- 'sling',]
+ 'Short Sleeved Shirt',
+ 'Long Sleeved Shirt',
+ 'Short Sleeved Outwear',
+ 'Long Sleeved Outwear',
+ 'Vest',
+ 'Sling',]
 var LOWER_CLOTHES=[
- 'shorts',
- 'trousers',
- 'skirt']
+ 'Shorts',
+ 'Trousers',
+ 'Skirt']
 var DRESS=[
- 'short_sleeved_dress',
- 'long_sleeved_dress',
- 'vest_dress',
- 'sling_dress']
+ 'Short Sleeved Dress',
+ 'Long Sleeved Dress',
+ 'Vest Dress',
+ 'Sling Dress']
 //========================================================================
 // Main button events
 //========================================================================
@@ -100,6 +101,10 @@ function clearImage() {
   hide(predLower);
   hide(predDress);
   show(uploadCaption);
+  
+  //test
+  labelUpper.innerHTML = "";
+  hide(labelUpper);
 
   imageDisplay.classList.remove("loading");
 }
@@ -175,26 +180,34 @@ function displayResult(data) {
 
     if(UPPER_CLOTHES.includes(key))
     {
-    predUpper.innerHTML += key + " upper " + obj[key];
-    show(predUpper);
+    change_color(predUpper,key,obj[key]);
     }
     
     if(LOWER_CLOTHES.includes(key))
     {
-    predLower.innerHTML += key + " lower " + obj[key];
-    show(predLower);
+      change_color(predLower,key,obj[key]);
     }
 
     
     if(DRESS.includes(key))
     {
-    predDress.innerHTML += key + " lower " + obj[key];
-    show(predDress);
+    change_color(predDress,key,obj[key]);
     }
 
     });
 
+
  
+}
+
+
+function change_color(predcloth,key,value) {
+  var key = key.replace('_', ' ')
+  predcloth.innerHTML= key + "<br>"+ value;
+  predcloth.style.backgroundColor=value;
+  predcloth.style.color = "#ffffff";
+  predcloth.style.textAlign = "center";
+  show(predcloth);
 }
 
 function hide(el) {
